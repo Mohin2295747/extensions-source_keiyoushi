@@ -40,6 +40,7 @@ val ALBUM_PICTURES_REQUEST_GQL = $$"""
                 thumbnails {
                     url
                 }
+                is_animated: url_to_video
             }
         }
       }
@@ -81,8 +82,23 @@ fragment AlbumInSearchList on Album {
 
 const val MERGE_CHAPTER_PREF_KEY = "MERGE_CHAPTER"
 const val MERGE_CHAPTER_PREF_TITLE = "Merge Chapter"
-const val MERGE_CHAPTER_PREF_SUMMARY = "If checked, merges all content of one album into chapters of up to 1000 images each, labeled as 'Merged Chapter (Part 1)', 'Merged Chapter (Part 2)', and so on. Note: you must be logged into the WebView to access more than 1000 images."
+const val MERGE_CHAPTER_PREF_SUMMARY = "If checked, merges pictures into chapters based on custom size settings"
 const val MERGE_CHAPTER_PREF_DEFAULT_VALUE = false
+
+const val MERGE_SIZES_PREF_KEY = "MERGE_SIZES"
+const val MERGE_SIZES_PREF_TITLE = "Merge Sizes (comma separated)"
+const val MERGE_SIZES_PREF_SUMMARY = "Enter sizes for chapter merging, e.g.: 100,250,500,750,1000"
+const val MERGE_SIZES_PREF_DEFAULT_VALUE = "100,250,500,750,1000"
+
+const val SEPARATE_ANIMATED_PREF_KEY = "SEPARATE_ANIMATED"
+const val SEPARATE_ANIMATED_PREF_TITLE = "Separate Animated Pictures"
+const val SEPARATE_ANIMATED_PREF_SUMMARY = "Create separate chapters for animated pictures with different merge sizes"
+const val SEPARATE_ANIMATED_PREF_DEFAULT_VALUE = false
+
+const val ANIMATED_MERGE_SIZES_PREF_KEY = "ANIMATED_MERGE_SIZES"
+const val ANIMATED_MERGE_SIZES_PREF_TITLE = "Animated Merge Sizes (comma separated)"
+const val ANIMATED_MERGE_SIZES_PREF_SUMMARY = "Enter sizes for animated picture merging, e.g.: 25,50,100,250,500,750,1000"
+const val ANIMATED_MERGE_SIZES_PREF_DEFAULT_VALUE = "25,50,100,250,500,750,1000"
 
 const val RESOLUTION_PREF_KEY = "RESOLUTION"
 const val RESOLUTION_PREF_TITLE = "Image resolution"
@@ -101,3 +117,6 @@ const val MIRROR_PREF_TITLE = "Mirror"
 val MIRROR_PREF_ENTRIES = arrayOf("Guest", "Members")
 val MIRROR_PREF_ENTRY_VALUES = arrayOf("https://www.luscious.net", "https://members.luscious.net")
 val MIRROR_PREF_DEFAULT_VALUE = MIRROR_PREF_ENTRY_VALUES[0]
+
+const val SCANLATOR_PICTURES = "pictures"
+const val SCANLATOR_ANIMATED = "animated"

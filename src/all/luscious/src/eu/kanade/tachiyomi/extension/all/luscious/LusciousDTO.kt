@@ -14,7 +14,6 @@ class SingleIdVariable(
     val id: String,
 )
 
-// ALBUM LIST
 @Serializable
 class AlbumListResponse(
     val data: AlbumListData,
@@ -36,7 +35,6 @@ class AlbumList(
     val items: List<Album>,
 )
 
-// ALBUM RELATED
 @Serializable
 class AlbumRelatedResponse(
     val data: AlbumRelatedData,
@@ -63,7 +61,6 @@ class AlbumRelated(
     val itemsCreatedByThisUser: List<Album>?,
 )
 
-// ALBUM
 @Serializable
 class Album(
     val url: String,
@@ -107,7 +104,6 @@ class Cover(
     val width: Int,
 )
 
-// QUERY
 @Serializable
 class Variables(
     val input: Input,
@@ -127,8 +123,6 @@ class Filter(
     val name: String,
     val value: String,
 )
-
-// AlbumListOwnPictures
 
 @Serializable
 class AlbumListOwnPicturesResponse(
@@ -169,8 +163,6 @@ class PictureItem(
     val title: String? = null,
     val created: Long? = null,
 )
-
-// AlbumGet
 
 @Serializable
 class AlbumGetResponse(

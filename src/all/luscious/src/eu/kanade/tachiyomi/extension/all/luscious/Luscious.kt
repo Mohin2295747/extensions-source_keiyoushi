@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.all.luscious
 
 import android.content.SharedPreferences
 import androidx.preference.CheckBoxPreference
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.network.GET
@@ -26,7 +27,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.asResponseBody
 import rx.Observable
-import kotlin.math.ceil
 
 abstract class Luscious(
     final override val lang: String,
@@ -67,7 +67,6 @@ abstract class Luscious(
         }
     }
 
-    // Common
     private fun buildAlbumListRequestInput(page: Int, filters: FilterList, query: String = ""): Variables {
         val sortByFilter = filters.findInstance<SortBySelectFilter>()!!
         val albumTypeFilter = filters.findInstance<AlbumTypeSelectFilter>()!!
@@ -219,13 +218,9 @@ abstract class Luscious(
         return GET(url, headers)
     }
 
-    // Latest
-
     override fun latestUpdatesRequest(page: Int): Request = buildAlbumListRequest(page, getSortFilters(LATEST_DEFAULT_SORT_STATE, lusLang))
 
     override fun latestUpdatesParse(response: Response): MangasPage = parseAlbumListResponse(response)
-
-    // Chapters
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
         val id = manga.url.substringAfterLast("_").removeSuffix("/")
@@ -238,15 +233,100 @@ abstract class Luscious(
 
                 if (getMergeChapterPref()) {
                     val chapters = mutableListOf<SChapter>()
-                    val chunkCount = ceil(totalPictures / 1000.0).toInt().coerceAtLeast(1)
-
-                    for (i in 1..chunkCount) {
-                        val chapter = SChapter.create()
-                        chapter.url = "${manga.url}?chunk=$i"
-                        chapter.name = if (chunkCount == 1) "Merged Chapter" else "Merged Chapter (Part $i)"
-                        chapter.chapter_number = i.toFloat()
-                        chapter.date_upload = (album.created?.toLong() ?: 0L) * 1000L
-                        chapters.add(chapter)
+                    val mergeSizes = getMergeSizes().toMutableList()
+                    val separateAnimated = getSeparateAnimatedPref()
+                    
+                    if (separateAnimated) {
+                        var pictureOffset = 0
+                        var pictureChapterNum = 1
+                        var animatedOffset = 0
+                        var animatedChapterNum = 1
+                        
+                        var currentPage = 1
+                        var hasMore = true
+                        val allPictures = mutableListOf<Picture>()
+                        
+                        while (hasMore) {
+                            val pageResponse = client.newCall(GET(buildAlbumPicturesPageUrl(id, currentPage))).execute()
+                            val data = pageResponse.parseAs<AlbumListOwnPicturesResponse>()
+                            val pictureItems = data.data.picture.list.items
+                            
+                            if (pictureItems.isEmpty()) {
+                                hasMore = false
+                            } else {
+                                allPictures.addAll(pictureItems)
+                                if (currentPage * 50 >= totalPictures || pictureItems.size < 50) {
+                                    hasMore = false
+                                } else {
+                                    currentPage++
+                                }
+                            }
+                        }
+                        
+                        val staticPictures = allPictures.filter { it.urlToVideo == null }
+                        val animatedPictures = allPictures.filter { it.urlToVideo != null }
+                        
+                        var staticIndex = 0
+                        while (staticIndex < staticPictures.size) {
+                            val remaining = staticPictures.size - staticIndex
+                            var sizeToTake = mergeSizes.firstOrNull { remaining >= it } ?: mergeSizes.lastOrNull() ?: remaining
+                            if (sizeToTake > remaining) sizeToTake = remaining
+                            
+                            val chapter = SChapter.create()
+                            chapter.url = "${manga.url}?static_chunk=${pictureChapterNum}&start=$staticIndex&end=${staticIndex + sizeToTake}"
+                            chapter.name = "Chapter $pictureChapterNum"
+                            chapter.chapter_number = pictureChapterNum.toFloat()
+                            chapter.scanlator = SCANLATOR_PICTURES
+                            chapter.date_upload = (album.created?.toLong() ?: 0L) * 1000L
+                            chapters.add(chapter)
+                            
+                            staticIndex += sizeToTake
+                            pictureChapterNum++
+                            
+                            val nextSizeIndex = mergeSizes.indexOf(sizeToTake) + 1
+                            if (nextSizeIndex < mergeSizes.size && mergeSizes[nextSizeIndex] <= remaining - sizeToTake) {
+                            }
+                        }
+                        
+                        val animatedMergeSizes = getAnimatedMergeSizes()
+                        var animatedIndex = 0
+                        while (animatedIndex < animatedPictures.size) {
+                            val remaining = animatedPictures.size - animatedIndex
+                            var sizeToTake = animatedMergeSizes.firstOrNull { remaining >= it } ?: animatedMergeSizes.lastOrNull() ?: remaining
+                            if (sizeToTake > remaining) sizeToTake = remaining
+                            
+                            val chapter = SChapter.create()
+                            chapter.url = "${manga.url}?animated_chunk=${animatedChapterNum}&start=$animatedIndex&end=${animatedIndex + sizeToTake}"
+                            chapter.name = "Chapter $pictureChapterNum"
+                            chapter.chapter_number = pictureChapterNum.toFloat()
+                            chapter.scanlator = SCANLATOR_ANIMATED
+                            chapter.date_upload = (album.created?.toLong() ?: 0L) * 1000L
+                            chapters.add(chapter)
+                            
+                            animatedIndex += sizeToTake
+                            pictureChapterNum++
+                            animatedChapterNum++
+                        }
+                    } else {
+                        var pictureOffset = 0
+                        var chapterNum = 1
+                        
+                        while (pictureOffset < totalPictures) {
+                            val remaining = totalPictures - pictureOffset
+                            var sizeToTake = mergeSizes.firstOrNull { remaining >= it } ?: mergeSizes.lastOrNull() ?: remaining
+                            if (sizeToTake > remaining) sizeToTake = remaining
+                            
+                            val chapter = SChapter.create()
+                            chapter.url = "${manga.url}?chunk=$chapterNum&start=$pictureOffset&end=${pictureOffset + sizeToTake}"
+                            chapter.name = "Chapter $chapterNum"
+                            chapter.chapter_number = chapterNum.toFloat()
+                            chapter.scanlator = SCANLATOR_PICTURES
+                            chapter.date_upload = (album.created?.toLong() ?: 0L) * 1000L
+                            chapters.add(chapter)
+                            
+                            pictureOffset += sizeToTake
+                            chapterNum++
+                        }
                     }
                     chapters.reversed()
                 } else {
@@ -267,13 +347,12 @@ abstract class Luscious(
                                     chapter_number = it.index.toFloat()
                                     name = "${it.index} - ${it.title}"
                                     date_upload = (it.created ?: 0L) * 1000L
+                                    scanlator = SCANLATOR_PICTURES
                                 }
                                 chapter.setUrlWithoutDomain(it.url)
                                 chapters.add(chapter)
                             }
 
-                            // API natively caps `total_items` tracking to 1000 so we override that by
-                            // directly tracking standard math iteration against the true `numberOfPictures`
                             if (page * 50 >= totalPictures || data.data.picture.list.items.isEmpty()) {
                                 hasMore = false
                             } else {
@@ -321,8 +400,6 @@ abstract class Luscious(
 
     override fun chapterListParse(response: Response): List<SChapter> = throw UnsupportedOperationException()
 
-    // Pages
-
     private fun buildAlbumPicturesRequestInput(id: String, page: Int): Variables = Variables(
         input = Input(
             filters = listOf(
@@ -343,32 +420,86 @@ abstract class Luscious(
             .build()
     }
 
-    override fun fetchPageList(chapter: SChapter): Observable<List<Page>> = if (chapter.url.startsWith("/albums/")) {
-        val chunk = chapter.url.substringAfter("?chunk=", "1").substringBefore("#").toIntOrNull() ?: 1
+    override fun fetchPageList(chapter: SChapter): Observable<List<Page>> {
+        val staticChunk = chapter.url.substringAfter("?static_chunk=", "").substringBefore("&").toIntOrNull()
+        val animatedChunk = chapter.url.substringAfter("?animated_chunk=", "").substringBefore("&").toIntOrNull()
+        val chunk = chapter.url.substringAfter("?chunk=", "1").substringBefore("#").toIntOrNull()
+        val startPos = chapter.url.substringAfter("start=", "").substringBefore("&").toIntOrNull()
+        val endPos = chapter.url.substringAfter("end=", "").substringBefore("&").toIntOrNull()
+        
         val id = chapter.url.substringBefore("?").substringAfterLast("_").removeSuffix("/")
-
-        Observable.fromCallable {
-            val pages = mutableListOf<Page>()
-            val startPage = (chunk - 1) * 20 + 1
-            val endPage = chunk * 20
-
-            for (page in startPage..endPage) {
-                val response = client.newCall(GET(buildAlbumPicturesPageUrl(id, page))).execute()
-                val data = response.parseAs<AlbumListOwnPicturesResponse>()
-                val pictureItems = parsePictures(data)
-
-                if (pictureItems.isEmpty()) break
-
-                pictureItems.forEach {
-                    pages.add(Page(pages.size, imageUrl = it.url.toHttpUrl().newBuilder().host(cdnHost).build().toString()))
+        
+        return if (staticChunk != null || animatedChunk != null || chunk != null) {
+            Observable.fromCallable {
+                val pages = mutableListOf<Page>()
+                val separateAnimated = getSeparateAnimatedPref()
+                
+                val pictures = mutableListOf<Picture>()
+                var currentPage = 1
+                var hasMore = true
+                
+                while (hasMore) {
+                    val response = client.newCall(GET(buildAlbumPicturesPageUrl(id, currentPage))).execute()
+                    val data = response.parseAs<AlbumListOwnPicturesResponse>()
+                    val items = data.data.picture.list.items
+                    
+                    if (items.isEmpty()) {
+                        hasMore = false
+                    } else {
+                        pictures.addAll(items)
+                        if (items.size < 50) {
+                            hasMore = false
+                        } else {
+                            currentPage++
+                        }
+                    }
                 }
-
-                if (pictureItems.size < 50) break
+                
+                val targetPictures = if (separateAnimated && (staticChunk != null || animatedChunk != null)) {
+                    if (staticChunk != null) {
+                        pictures.filter { it.urlToVideo == null }
+                    } else {
+                        pictures.filter { it.urlToVideo != null }
+                    }
+                } else {
+                    pictures
+                }
+                
+                val start = startPos ?: 0
+                val end = endPos ?: targetPictures.size
+                val slice = targetPictures.subList(start, minOf(end, targetPictures.size))
+                
+                slice.forEachIndexed { idx, picture ->
+                    val url = getPictureUrl(picture)
+                    val finalUrl = if (url.startsWith("//")) "https:$url" else url
+                    pages.add(Page(idx, imageUrl = finalUrl.toHttpUrl().newBuilder().host(cdnHost).build().toString()))
+                }
+                pages
             }
-            pages
+        } else if (chapter.url.startsWith("/albums/")) {
+            Observable.fromCallable {
+                val pages = mutableListOf<Page>()
+                val startPage = (chunk ?: 1 - 1) * 20 + 1
+                val endPage = (chunk ?: 1) * 20
+
+                for (page in startPage..endPage) {
+                    val response = client.newCall(GET(buildAlbumPicturesPageUrl(id, page))).execute()
+                    val data = response.parseAs<AlbumListOwnPicturesResponse>()
+                    val pictureItems = parsePictures(data)
+
+                    if (pictureItems.isEmpty()) break
+
+                    pictureItems.forEach {
+                        pages.add(Page(pages.size, imageUrl = it.url.toHttpUrl().newBuilder().host(cdnHost).build().toString()))
+                    }
+
+                    if (pictureItems.size < 50) break
+                }
+                pages
+            }
+        } else {
+            Observable.just(listOf(Page(0, imageUrl = "https://$cdnHost${chapter.url}")))
         }
-    } else {
-        Observable.just(listOf(Page(0, imageUrl = "https://$cdnHost${chapter.url}")))
     }
 
     override fun pageListParse(response: Response): List<Page> = throw UnsupportedOperationException()
@@ -382,8 +513,6 @@ abstract class Luscious(
     } else {
         "https://$cdnHost${chapter.url}"
     }
-
-    // Details
 
     override fun mangaDetailsRequest(manga: SManga): Request = GET("$baseUrl${manga.url}", headers)
 
@@ -420,8 +549,6 @@ abstract class Luscious(
 
     override fun mangaDetailsParse(response: Response): SManga = throw UnsupportedOperationException()
 
-    // Related
-
     override fun relatedMangaListRequest(manga: SManga): Request {
         val id = manga.url.substringAfterLast("_").removeSuffix("/")
         return buildAlbumListRelatedRequest(id)
@@ -446,13 +573,9 @@ abstract class Luscious(
         }
     }
 
-    // Popular
-
     override fun popularMangaParse(response: Response): MangasPage = parseAlbumListResponse(response)
 
     override fun popularMangaRequest(page: Int): Request = buildAlbumListRequest(page, getSortFilters(POPULAR_DEFAULT_SORT_STATE, lusLang))
-
-    // Search
 
     override fun searchMangaParse(response: Response): MangasPage = parseAlbumListResponse(response)
 
@@ -531,6 +654,51 @@ abstract class Luscious(
                 preferences.edit().putBoolean("${MERGE_CHAPTER_PREF_KEY}_$lang", checkValue).commit()
             }
         }
+        val mergeSizesPref = EditTextPreference(screen.context).apply {
+            key = "${MERGE_SIZES_PREF_KEY}_$lang"
+            title = MERGE_SIZES_PREF_TITLE
+            summary = MERGE_SIZES_PREF_SUMMARY
+            setDefaultValue(MERGE_SIZES_PREF_DEFAULT_VALUE)
+            dialogTitle = "Enter comma-separated merge sizes"
+            
+            setOnPreferenceChangeListener { _, newValue ->
+                val value = newValue as String
+                preferences.edit().putString("${MERGE_SIZES_PREF_KEY}_$lang", value).commit()
+                summary = "Current: $value"
+                true
+            }
+            summary = "Current: ${getMergeSizes().joinToString(",")}"
+        }
+        val separateAnimatedPref = CheckBoxPreference(screen.context).apply {
+            key = "${SEPARATE_ANIMATED_PREF_KEY}_$lang"
+            title = SEPARATE_ANIMATED_PREF_TITLE
+            summary = SEPARATE_ANIMATED_PREF_SUMMARY
+            setDefaultValue(SEPARATE_ANIMATED_PREF_DEFAULT_VALUE)
+
+            setOnPreferenceChangeListener { _, newValue ->
+                val checkValue = newValue as Boolean
+                preferences.edit().putBoolean("${SEPARATE_ANIMATED_PREF_KEY}_$lang", checkValue).commit()
+                mergeSizesPref.isVisible = !checkValue
+                animatedMergeSizesPref.isVisible = checkValue
+                true
+            }
+        }
+        val animatedMergeSizesPref = EditTextPreference(screen.context).apply {
+            key = "${ANIMATED_MERGE_SIZES_PREF_KEY}_$lang"
+            title = ANIMATED_MERGE_SIZES_PREF_TITLE
+            summary = ANIMATED_MERGE_SIZES_PREF_SUMMARY
+            setDefaultValue(ANIMATED_MERGE_SIZES_PREF_DEFAULT_VALUE)
+            dialogTitle = "Enter comma-separated animated merge sizes"
+            isVisible = getSeparateAnimatedPref()
+            
+            setOnPreferenceChangeListener { _, newValue ->
+                val value = newValue as String
+                preferences.edit().putString("${ANIMATED_MERGE_SIZES_PREF_KEY}_$lang", value).commit()
+                summary = "Current: $value"
+                true
+            }
+            summary = "Current: ${getAnimatedMergeSizes().joinToString(",")}"
+        }
         val mirrorPref = ListPreference(screen.context).apply {
             key = "${MIRROR_PREF_KEY}_$lang"
             title = MIRROR_PREF_TITLE
@@ -549,10 +717,22 @@ abstract class Luscious(
         screen.addPreference(resolutionPref)
         screen.addPreference(sortPref)
         screen.addPreference(mergeChapterPref)
+        screen.addPreference(mergeSizesPref)
+        screen.addPreference(separateAnimatedPref)
+        screen.addPreference(animatedMergeSizesPref)
         screen.addPreference(mirrorPref)
     }
 
     fun getMergeChapterPref(): Boolean = preferences.getBoolean("${MERGE_CHAPTER_PREF_KEY}_$lang", MERGE_CHAPTER_PREF_DEFAULT_VALUE)
+    fun getMergeSizes(): List<Int> {
+        val sizesStr = preferences.getString("${MERGE_SIZES_PREF_KEY}_$lang", MERGE_SIZES_PREF_DEFAULT_VALUE) ?: MERGE_SIZES_PREF_DEFAULT_VALUE
+        return sizesStr.split(",").mapNotNull { it.trim().toIntOrNull() }.sorted()
+    }
+    fun getSeparateAnimatedPref(): Boolean = preferences.getBoolean("${SEPARATE_ANIMATED_PREF_KEY}_$lang", SEPARATE_ANIMATED_PREF_DEFAULT_VALUE)
+    fun getAnimatedMergeSizes(): List<Int> {
+        val sizesStr = preferences.getString("${ANIMATED_MERGE_SIZES_PREF_KEY}_$lang", ANIMATED_MERGE_SIZES_PREF_DEFAULT_VALUE) ?: ANIMATED_MERGE_SIZES_PREF_DEFAULT_VALUE
+        return sizesStr.split(",").mapNotNull { it.trim().toIntOrNull() }.sorted()
+    }
     fun getResolutionPref(): String? = preferences.getString("${RESOLUTION_PREF_KEY}_$lang", RESOLUTION_PREF_DEFAULT_VALUE)
     fun getSortPref(): String? = preferences.getString("${SORT_PREF_KEY}_$lang", SORT_PREF_DEFAULT_VALUE)
     fun getMirrorPref(): String? = preferences.getString("${MIRROR_PREF_KEY}_$lang", MIRROR_PREF_DEFAULT_VALUE)
