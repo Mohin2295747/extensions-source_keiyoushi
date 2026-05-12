@@ -26,7 +26,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.asResponseBody
 import rx.Observable
-import kotlin.math.ceil
+import kotlin.math.min
 
 abstract class Luscious(
     final override val lang: String,
@@ -657,7 +657,6 @@ abstract class Luscious(
             setOnPreferenceChangeListener { _, newValue ->
                 val checkValue = newValue as Boolean
                 preferences.edit().putBoolean("${SEPARATE_ANIMATED_PREF_KEY}_$lang", checkValue).commit()
-                animatedMergeSizePref.isVisible = checkValue
                 true
             }
         }
@@ -668,7 +667,6 @@ abstract class Luscious(
             entryValues = ANIMATED_MERGE_SIZE_ENTRY_VALUES
             setDefaultValue(ANIMATED_MERGE_SIZE_DEFAULT_VALUE)
             summary = "%s"
-            isVisible = getSeparateAnimatedPref()
 
             setOnPreferenceChangeListener { _, newValue ->
                 val selected = newValue as String
