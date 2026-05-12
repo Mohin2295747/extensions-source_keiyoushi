@@ -1,8 +1,0 @@
-ext {
-    extName = 'Kappa Beast'
-    extClass = '.KappaBeast'
-    extVersionCode = 32
-    isNsfw = true
-}
-
-apply from: "$rootDir/common.gradle"

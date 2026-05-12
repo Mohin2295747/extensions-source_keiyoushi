@@ -1,8 +1,0 @@
-ext {
-    extName = 'Jeaz Scans'
-    extClass = '.JeazScans'
-    extVersionCode = 66
-    isNsfw = false
-}
-
-apply from: "$rootDir/common.gradle"

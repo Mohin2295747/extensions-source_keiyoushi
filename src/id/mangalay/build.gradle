@@ -1,8 +1,0 @@
-ext {
-    extName = 'Mangalay'
-    extClass = '.Mangalay'
-    extVersionCode = 2
-    isNsfw = false
-}
-
-apply from: "$rootDir/common.gradle"

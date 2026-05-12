@@ -1,8 +1,0 @@
-ext {
-    extName = 'Yomu Mangás'
-    extClass = '.YomuMangas'
-    extVersionCode = 5
-    isNsfw = true
-}
-
-apply from: "$rootDir/common.gradle"

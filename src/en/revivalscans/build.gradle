@@ -1,8 +1,0 @@
-ext {
-    extName = 'Revival Scans'
-    extClass = '.RevivalScans'
-    extVersionCode = 1
-    isNsfw = true
-}
-
-apply from: "$rootDir/common.gradle"
