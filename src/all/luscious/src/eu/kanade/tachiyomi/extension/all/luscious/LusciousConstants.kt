@@ -40,7 +40,6 @@ val ALBUM_PICTURES_REQUEST_GQL = $$"""
                 thumbnails {
                     url
                 }
-                is_animated: url_to_video
             }
         }
       }
@@ -82,23 +81,25 @@ fragment AlbumInSearchList on Album {
 
 const val MERGE_CHAPTER_PREF_KEY = "MERGE_CHAPTER"
 const val MERGE_CHAPTER_PREF_TITLE = "Merge Chapter"
-const val MERGE_CHAPTER_PREF_SUMMARY = "If checked, merges pictures into chapters based on custom size settings"
+const val MERGE_CHAPTER_PREF_SUMMARY = "If checked, merges pictures into chapters"
 const val MERGE_CHAPTER_PREF_DEFAULT_VALUE = false
 
-const val MERGE_SIZES_PREF_KEY = "MERGE_SIZES"
-const val MERGE_SIZES_PREF_TITLE = "Merge Sizes (comma separated)"
-const val MERGE_SIZES_PREF_SUMMARY = "Enter sizes for chapter merging, e.g.: 100,250,500,750,1000"
-const val MERGE_SIZES_PREF_DEFAULT_VALUE = "100,250,500,750,1000"
+const val MERGE_SIZE_PREF_KEY = "MERGE_SIZE"
+const val MERGE_SIZE_PREF_TITLE = "Pictures Per Chapter"
+val MERGE_SIZE_ENTRIES = arrayOf("100", "250", "500", "750", "1000")
+val MERGE_SIZE_ENTRY_VALUES = arrayOf("100", "250", "500", "750", "1000")
+const val MERGE_SIZE_DEFAULT_VALUE = "100"
 
 const val SEPARATE_ANIMATED_PREF_KEY = "SEPARATE_ANIMATED"
 const val SEPARATE_ANIMATED_PREF_TITLE = "Separate Animated Pictures"
-const val SEPARATE_ANIMATED_PREF_SUMMARY = "Create separate chapters for animated pictures with different merge sizes"
+const val SEPARATE_ANIMATED_PREF_SUMMARY = "Create separate chapters for animated pictures with different merge size"
 const val SEPARATE_ANIMATED_PREF_DEFAULT_VALUE = false
 
-const val ANIMATED_MERGE_SIZES_PREF_KEY = "ANIMATED_MERGE_SIZES"
-const val ANIMATED_MERGE_SIZES_PREF_TITLE = "Animated Merge Sizes (comma separated)"
-const val ANIMATED_MERGE_SIZES_PREF_SUMMARY = "Enter sizes for animated picture merging, e.g.: 25,50,100,250,500,750,1000"
-const val ANIMATED_MERGE_SIZES_PREF_DEFAULT_VALUE = "25,50,100,250,500,750,1000"
+const val ANIMATED_MERGE_SIZE_PREF_KEY = "ANIMATED_MERGE_SIZE"
+const val ANIMATED_MERGE_SIZE_PREF_TITLE = "Animated Pictures Per Chapter"
+val ANIMATED_MERGE_SIZE_ENTRIES = arrayOf("25", "50", "100", "250", "500", "750", "1000")
+val ANIMATED_MERGE_SIZE_ENTRY_VALUES = arrayOf("25", "50", "100", "250", "500", "750", "1000")
+const val ANIMATED_MERGE_SIZE_DEFAULT_VALUE = "25"
 
 const val RESOLUTION_PREF_KEY = "RESOLUTION"
 const val RESOLUTION_PREF_TITLE = "Image resolution"
